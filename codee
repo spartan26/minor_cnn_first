@@ -1,0 +1,65 @@
+import tensorflow as tf
+import tensorflow.keras.layers as tfl
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Dropout, AveragePooling2D
+from tensorflow.keras import Sequential
+from tensorflow.keras.callbacks import EarlyStopping
+import numpy as np
+import joblib
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+BATCH_SIZE = 32
+IMG_SIZE = (256, 256)
+TRAIN_DIR = './root/train'
+TEST_DIR = './root/test'
+
+train_datagen = ImageDataGenerator(rescale=1./255,
+        rotation_range=0.2,
+        shear_range=0.2,
+        horizontal_flip=True)
+test_datagen = ImageDataGenerator(rescale=1./255)
+train_generator = train_datagen.flow_from_directory(
+        TRAIN_DIR,
+        target_size=IMG_SIZE,
+        color_mode='rgb',
+        batch_size=BATCH_SIZE,
+        class_mode='categorical')
+validation_generator = test_datagen.flow_from_directory(
+        TEST_DIR,
+        target_size=IMG_SIZE,
+        color_mode='rgb',
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        class_mode='categorical')
+        
+train_generator.class_indices
+
+def LeNet_PD(IMG_SIZE):
+  IP_SHAPE = IMG_SIZE + (3, )
+  model = Sequential([
+    Conv2D(6, 5, activation='relu', strides=(1, 1), input_shape=IP_SHAPE),
+    AveragePooling2D(pool_size=(2, 2), strides=(2, 2)),
+    Conv2D(16, 5, activation='relu', strides=(1, 1)),
+    AveragePooling2D(pool_size=(2, 2), strides=(2, 2)),
+    Conv2D(120, 5, activation='relu', strides=(1, 1)),
+    Flatten(),
+
+    Dense(84, activation='relu'),
+    Dense(15, activation='softmax')
+  ])
+  return model
+
+model = LeNet_PD(IMG_SIZE)
+model.summary()
+
+base_learning_rate = 0.001
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=base_learning_rate),
+              loss=tf.keras.losses.CategoricalCrossentropy(),
+              metrics=['accuracy'])
+              
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+
+initial_epochs = 10
+history = model.fit(train_generator, epochs=initial_epochs, validation_data = validation_generator, callbacks=[early_stopping])
